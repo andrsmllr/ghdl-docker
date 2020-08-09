@@ -1,0 +1,8 @@
+#!/bin/bash
+echo "--- HOOK START: $0 ---"
+printenv
+
+# Variable ${GHDL_BACKEND} is a build variable created by github.io.
+docker build --build-arg GHDL_BACKEND=${GHDL_BACKEND} --tag andrsmllr/ghdl-${GHDL_BACKEND} .
+
+echo "--- HOOK END: $0 ---"
