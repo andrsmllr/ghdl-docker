@@ -1,20 +1,21 @@
-FROM ubuntu:18.04 AS ghdl-builder
+FROM ubuntu:20.04 AS ghdl-builder
 LABEL maintainer="andrsmllr <andrsmllr@bananatronics.org>"
 LABEL description="GHDL open source VHDL simulator"
-LABEL version="1.0"
-ARG GHDL_VERSION=v0.36
+LABEL version="1.1"
+ARG GHDL_VERSION=v0.37
 ARG GHDL_BACKEND=mcode
 
 ENV TERM=xterm-256color
 VOLUME /workdir
 WORKDIR /workdir
+
 # GHDL build parameters.
 ENV GHDL_BACKEND=${GHDL_BACKEND}
 ENV GHDL_VERSION=${GHDL_VERSION}
 ENV GHDL_PATH=/opt/ghdl-${GHDL_BACKEND}-${GHDL_VERSION}
 ENV GHDL_SRC=/usr/src/ghdl
 # Supported backend version may depend on GHDL version.
-ENV LLVM_VERSION=7
+ENV LLVM_VERSION=9
 #RUN export GCC_VERSION=$(gcc --version | sed -n 1p | rev | cut -d" " -f1 | rev)
 #RUN export GCC_MAJOR_VERSION=$(echo $GCC_VERSION | head -c 1)
 ENV GCC_VERSION=7.4
@@ -28,10 +29,11 @@ RUN apt update -qq \
         make \
         libz-dev \
         ca-certificates \
-    && apt autoclean && apt clean && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 RUN git clone https://github.com/ghdl/ghdl $GHDL_SRC \
     && cd ${GHDL_SRC} \
     && git checkout ${GHDL_VERSION}
+
 # Build with mcode backend. This takes no time to build.
 RUN if [ ${GHDL_BACKEND} = mcode ]; then \
     cd ${GHDL_SRC} \
@@ -41,15 +43,16 @@ RUN if [ ${GHDL_BACKEND} = mcode ]; then \
     && ln -s ${GHDL_PATH} /opt/ghdl \
     && ln -s /opt/ghdl/bin/ghdl /usr/bin/ghdl \
     ; fi
+
 # Build with llvm backend. This takes some time to build.
 RUN if [ ${GHDL_BACKEND} = llvm ]; then \
     apt update -qq \
     && apt install --no-install-recommends -qq -y \
         llvm-${LLVM_VERSION} \
         llvm-${LLVM_VERSION}-dev \
-        clang++-${LLVM_VERSION} \
+        clang-${LLVM_VERSION} \
         libedit-dev gcc-${GCC_MAJOR_VERSION} \
-    && apt autoclean && apt clean && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/bin/clang++-${LLVM_VERSION} /usr/bin/clang++ \
     && cd ${GHDL_SRC} \
     && ./configure \
@@ -59,6 +62,7 @@ RUN if [ ${GHDL_BACKEND} = llvm ]; then \
     && ln -s ${GHDL_PATH} /opt/ghdl \
     && ln -s /opt/ghdl/bin/ghdl /usr/bin/ghdl \
     ; fi
+
 # Build with gcc backend. This takes a very long time to build. Does not work yet.
 RUN if [ ${GHDL_BACKEND} = gcc ]; then \
     apt update -qq \
@@ -87,6 +91,8 @@ RUN if [ ${GHDL_BACKEND} = gcc ]; then \
     && make && make install \
     && ln -s ${GHDL_PATH}-gcc/bin/ghdl /usr/bin/ghdl \
     ; fi
+
+WORKDIR /work
 ENTRYPOINT ["/usr/bin/ghdl"]
 CMD ["--help"]
 
